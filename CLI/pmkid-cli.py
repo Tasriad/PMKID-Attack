@@ -53,10 +53,26 @@ def start_monitor_mode():
     interface = input("\nEnter the interface (Default: wlan0): ").strip()
     if not interface:
         interface = "wlan0"
+    
+    # Store original interface name for reference
+    original_interface = interface
+    
     subprocess.run("airmon-ng start " + interface, shell=True)
     subprocess.run("airmon-ng check kill", shell=True)
 
-    print(f"\n{interface} set to monitor mode..")
+    print(f"\n{original_interface} set to monitor mode..")
+    
+    # Prompt user to update interface name if it changed (e.g., wlp3s0 -> wlp3s0mon)
+    print(f"\n[+] Monitor mode enabled. Your interface may have changed.")
+    print(f"[+] Original interface: {original_interface}")
+    updated_interface = input(f"[+] Enter the new interface name (e.g., {original_interface}mon) or press Enter to keep '{original_interface}': ").strip()
+    
+    if updated_interface:
+        interface = updated_interface
+        print(f"[+] Interface updated to: {interface}")
+    else:
+        print(f"[+] Using original interface name: {interface}")
+    
     time.sleep(4)
 
 def stop_monitor_mode():
