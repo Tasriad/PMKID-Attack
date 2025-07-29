@@ -220,8 +220,14 @@ def pmkid_step2_crack():
     except KeyboardInterrupt:
         print("\n[+] Cracking stopped by user.")
 
-    time.sleep(10)
-    main()
+    # Prompt user to go back to main menu
+    print("\n[+] Password cracking process completed!")
+    choice = input("[+] Do you want to go back to main menu? (y/n): ").strip().lower()
+    if choice == 'y' or choice == 'yes':
+        main()
+    else:
+        print("[+] Exiting...")
+        exit()
 
 def create_passwordlist():
     print("\n[+] Size of the file and time taken to create the password list depends on your input..")
