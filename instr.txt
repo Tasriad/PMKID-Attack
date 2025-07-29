@@ -1,0 +1,20 @@
+sudo python3 wifi_pentest_cli.py
+
+interface: wlp3s0 (found by command: iw dev)
+
+ctrl + c to stop and rerun the python
+
+interface: wlp3s0mon (by giving cursor the full error)
+
+hcxpcapngtool -o pmkid.22000 pmkid.pcapng
+hashcat -m 22000 pmkid.22000 rockyou.txt
+
+hashcat -m 22000 pmkid.22000 rockyou.txt --show
+
+to find hashcat profile: sudo find / -name 'hashcat.potfile' 2>/dev/null
+
+clear the previously found hashes:  rm /home/hp/.local/share/hashcat/hashcat.potfile
+
+for getting back wifi:
+sudo airmon-ng stop wlp3s0mon
+sudo systemctl restart NetworkManager
