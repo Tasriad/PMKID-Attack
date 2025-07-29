@@ -1,46 +1,150 @@
-# WiFi Pentesting Tool
+# PMKID Attack Tool
 
-A powerful **WiFi penetration testing tool** built using Python. This tool automates various WiFi security tests like **network scanning, handshake capture, WPA2 cracking, WPS attacks, PMKID attacks, and deauthentication attacks**.
+A **WiFi penetration testing tool** specifically designed for **PMKID attacks** - a powerful method to crack WiFi passwords without requiring client interaction. This tool automates the entire PMKID attack workflow from network scanning to password cracking.
+
+## 🎯 What is PMKID Attack?
+
+PMKID (Pairwise Master Key Identifier) attack is a WiFi security vulnerability that allows attackers to capture authentication data from access points without needing any connected clients. This makes it particularly effective for penetration testing.
 
 ## 🚀 Features
-- **Monitor Mode Management**: Enables/disables monitor mode on a WiFi adapter.
-- **Network Scanning**: Lists available WiFi networks.
-- **Handshake Capture**: Captures WPA2 handshakes for password cracking.
-- **WPA2 Password Cracking**: Uses wordlists to crack captured handshakes.
-- **WPS Attacks**: Exploits WPS vulnerabilities to retrieve WiFi passwords.
-- **PMKID Attack**: Captures and cracks PMKID hashes without client interaction.
-- **Deauthentication Attack**: Disconnects users from a WiFi network.
-- **Custom Password List Generator**: Creates wordlists using `crunch`.
 
-## 📦 Dependencies
-Make sure you have the following tools installed before running the script:
-- `aircrack-ng`
-- `hcxtools`
-- `hcxdumptool`
-- `reaver`
-- `crunch`
-- `xterm`
+- **🔍 Network Scanning**: Scan and identify available WiFi networks
+- **📡 PMKID Capture**: Automatically capture PMKID data from target access points
+- **🔓 Password Cracking**: Crack captured PMKID hashes using hashcat
+- **📝 Custom Wordlists**: Generate custom password lists using crunch
+- **🔄 Monitor Mode Management**: Automatic interface management for monitor mode
+- **⚡ Automated Workflow**: Streamlined process from capture to crack
 
-### Install dependencies (Debian-based systems)
+## 📦 Prerequisites
+
+### Required Tools
+The tool automatically installs these dependencies:
+- `aircrack-ng` - WiFi security auditing
+- `hcxtools` - WiFi tools for capturing and converting PMKID
+- `hcxdumptool` - PMKID capture tool
+- `hashcat` - Password cracking
+- `crunch` - Password list generation
+- `xterm` - Terminal emulator
+
+### System Requirements
+- **Linux** (Kali Linux recommended)
+- **Root privileges** (sudo access)
+- **Wireless adapter** with monitor mode support
+
+## 🛠️ Installation & Usage
+
+### 1. Clone the Repository
 ```bash
-sudo apt-get update && sudo apt-get install xterm aircrack-ng hcxtools hcxdumptool crunch reaver -y
+git clone <repository-url>
+cd PMKID-Attack
 ```
 
-## 🛠️ Usage
-Run the script with **root** privileges:
+### 2. Run the Tool
 ```bash
-sudo python3 wifi-pentest.py
+sudo python3 CLI/pmkid-cli.py
 ```
 
-### Available Options:
-1. **Networks Attacks** (Requires BSSID and monitor mode)
-2. **Scan Networks**
-3. **Capture Handshake** (Requires monitor mode)
-4. **Crack Handshake** (Uses wordlist)
-5. **Create a Custom Password List**
+### 3. Follow the Menu Options
+```
+(1) PMKID Attack - Step 1: Monitor & Capture PMKID
+(2) PMKID Attack - Step 2: Crack PMKID Password
+(3) Scan Networks
+(4) Create your own passwordlist
+(00) Exit
+```
 
-## ⚠️ Disclaimer
-This tool is intended for **educational purposes** only. **Do not use it for illegal activities.** The author is not responsible for any misuse.
+## 📋 Step-by-Step Guide
 
-## 📜 License
-This project is licensed under the **MIT License**. Feel free to modify and use it!
+### Step 1: Setup Interface
+1. Run the tool: `sudo python3 CLI/pmkid-cli.py`
+2. Choose option **1** (PMKID Attack - Step 1)
+3. Enter your wireless interface (e.g., `wlp3s0`)
+4. The tool will automatically handle interface name changes (e.g., `wlp3s0` → `wlp3s0mon`)
+
+### Step 2: Capture PMKID
+1. Scan for available networks
+2. Note the **BSSID** and **Channel** of your target
+3. Enter the target details when prompted
+4. Wait for PMKID capture (press `Ctrl+C` when done)
+
+### Step 3: Crack Password
+1. Choose option **2** (PMKID Attack - Step 2)
+2. Select your wordlist (rockyou.txt or custom)
+3. Wait for hashcat to crack the password
+
+## 🔧 Manual Commands
+
+If you prefer to run commands manually:
+
+```bash
+# Find your interface
+iw dev
+
+# Start monitor mode
+sudo airmon-ng start wlp3s0
+
+# Capture PMKID
+sudo hcxdumptool -i wlp3s0mon --enable_status=1 -o pmkid.pcapng --filterlist_ap=TARGET_BSSID --filtermode=2
+
+# Convert to hash format
+hcxpcapngtool -o pmkid.22000 pmkid.pcapng
+
+# Crack with hashcat
+hashcat -m 22000 pmkid.22000 rockyou.txt
+
+# Show results
+hashcat -m 22000 pmkid.22000 rockyou.txt --show
+```
+
+## 📁 File Structure
+
+```
+PMKID-Attack/
+├── CLI/
+│   ├── pmkid-cli.py          # Main CLI tool
+│   ├── pmkid.pcapng          # Captured PMKID data
+│   └── pmkid.22000           # Hashcat-compatible hash file
+├── saved-pmkid/              # Saved PMKID captures
+├── instr.txt                 # Detailed instructions
+└── README.md                 # This file
+```
+
+## 🎯 Attack Workflow
+
+```
+1. Interface Setup → 2. Network Scan → 3. PMKID Capture → 4. Hash Conversion → 5. Password Cracking
+```
+
+## ⚠️ Important Notes
+
+- **Legal Use Only**: This tool is for educational and authorized penetration testing
+- **Monitor Mode**: Disables normal WiFi connection during use
+- **Wordlists**: Keep rockyou.txt ready for password cracking
+- **Interface Names**: The tool automatically handles interface name changes
+- **Root Access**: Always run with sudo for wireless operations
+
+## 🔄 Restore WiFi Connection
+
+After using the tool, restore normal WiFi:
+
+```bash
+# Stop monitor mode
+sudo airmon-ng stop wlp3s0mon
+
+# Restart network manager
+sudo systemctl restart NetworkManager
+```
+
+## 📚 Additional Resources
+
+- **Instructions**: See `instr.txt` for detailed command reference
+- **Troubleshooting**: Check interface setup in the instructions
+- **Wordlists**: Download rockyou.txt for effective password cracking
+
+## ⚖️ Disclaimer
+
+This tool is intended for **educational purposes and authorized penetration testing only**. Users are responsible for ensuring they have proper authorization before testing any network. The authors are not responsible for any misuse of this tool.
+
+---
+
+**Happy Hacking! 🔓**
